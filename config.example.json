@@ -1,0 +1,30 @@
+{
+  // IP-adres of hostnaam van je UniFi-console (UDM, UNVR, Cloud Key)
+  "host": "192.168.1.1",
+
+  // Protect > Settings > Control Plane > Integrations > API-key aanmaken
+  "apiKey": "PLAK-HIER-JE-API-KEY",
+
+  // false = zelfondertekend certificaat van de console aanvaarden
+  "verifyTls": false,
+
+  // high, medium of low
+  "quality": "medium",
+
+  "popupSeconds": 60,
+  "popupWidth": 480,
+  "mute": true,
+
+  // Triggers
+  "doorbell": true,
+  "smartDetectTypes": ["person", "vehicle", "package"],
+
+  // Leeg = alle camera's. Anders namen of id's, bv. ["Voordeur", "Oprit"]
+  "cameras": [],
+
+  // Alleen invullen als mpv niet automatisch gevonden wordt
+  "mpvPath": null,
+
+  // true = elk binnenkomend event ruw loggen (handig om te debuggen)
+  "logAllEvents": false
+}
