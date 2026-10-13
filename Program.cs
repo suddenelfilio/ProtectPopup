@@ -247,6 +247,12 @@ sealed class ProtectClient
         }
 
         if (url is null) return null;
+        // De url gaat naar mpv: alleen echte rtsps-urls doorlaten, nooit iets dat als optie gelezen kan worden.
+        if (!url.StartsWith("rtsps://", StringComparison.OrdinalIgnoreCase))
+        {
+            Log.Info("Onverwachte stream-url van Protect genegeerd.");
+            return null;
+        }
 
         // ffmpeg/mpv kent de '?enableSrtp'-parameter niet; zonder werkt de stream gewoon over TLS.
         var query = url.IndexOf('?');
@@ -314,7 +320,6 @@ sealed class PopupManager(Config config, ProtectClient api)
             var info = new ProcessStartInfo(_mpv) { UseShellExecute = false };
             foreach (var argument in new[]
             {
-                url,
                 $"--title={title}",
                 $"--geometry={width}x{height}-24+{top}",   // rechtsboven, onder elkaar gestapeld
                 "--ontop",
@@ -327,6 +332,8 @@ sealed class PopupManager(Config config, ProtectClient api)
                 "--osc=no",
                 "--idle=no",
                 config.Mute ? "--mute=yes" : "--mute=no",
+                "--",   // alles hierna is een url, geen optie
+                url,
             })
             {
                 info.ArgumentList.Add(argument);
