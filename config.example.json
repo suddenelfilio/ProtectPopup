@@ -15,6 +15,13 @@
   "popupWidth": 480,
   "mute": true,
 
+  // Knipperende rand de eerste seconden (0 = uit), kleur als RRGGBB
+  "flashSeconds": 5,
+  "flashColor": "FF0000",
+
+  // macOS-systeemgeluid (Glass, Ping, Hero, Submarine...), volledig pad, of null = stil
+  "sound": "Glass",
+
   // Triggers
   "doorbell": true,
   "smartDetectTypes": ["person", "vehicle", "package"],

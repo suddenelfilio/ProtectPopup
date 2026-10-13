@@ -56,6 +56,7 @@ Log: `/tmp/protect-popup.log`. Stoppen: `launchctl unload ~/Library/LaunchAgents
 - Een event opent hoogstens een popup; komt er een nieuw event van dezelfde camera
   terwijl het venster openstaat, dan begint de minuut opnieuw.
 - Meerdere camera's tegelijk worden onder elkaar gestapeld.
+- Bij het openen knippert er 5 s een rode rand rond het beeld en speelt een geluid (`flashSeconds`, `flashColor`, `sound`). Grootte via `popupWidth`.
 - Bij verbindingsverlies wordt automatisch opnieuw verbonden.
 - De app maakt de RTSPS-stream (kwaliteit uit `quality`) zelf aan als die nog niet
   aanstaat op de camera.

@@ -119,6 +119,9 @@ sealed class Config
     public string[] Cameras { get; set; } = [];
     public string? MpvPath { get; set; }
     public bool LogAllEvents { get; set; } = false;
+    public int FlashSeconds { get; set; } = 5;
+    public string FlashColor { get; set; } = "FF0000";
+    public string? Sound { get; set; } = "Glass";
 
     public static Config Load(string[] args)
     {
@@ -288,9 +291,12 @@ sealed class PopupManager(Config config, ProtectClient api)
     private readonly object _gate = new();
     private readonly Dictionary<string, Popup> _open = new();
     private readonly string _mpv = FindMpv(config.MpvPath);
+    private readonly string _flashScript = WriteFlashScript();
 
     public async Task ShowAsync(string cameraId, string title, CancellationToken ct)
     {
+        PlaySound();
+
         lock (_gate)
         {
             if (_open.TryGetValue(cameraId, out var existing))
@@ -331,6 +337,8 @@ sealed class PopupManager(Config config, ProtectClient api)
                 "--input-conf=/dev/null",
                 "--osc=no",
                 "--idle=no",
+                $"--script={_flashScript}",
+                $"--script-opts=protect-flash-seconds={config.FlashSeconds},protect-flash-color={config.FlashColor}",
                 config.Mute ? "--mute=yes" : "--mute=no",
                 "--",   // alles hierna is een url, geen optie
                 url,
@@ -404,6 +412,67 @@ sealed class PopupManager(Config config, ProtectClient api)
         }
         catch (InvalidOperationException) { }
         catch (System.ComponentModel.Win32Exception) { }
+    }
+
+    private void PlaySound()
+    {
+        if (string.IsNullOrWhiteSpace(config.Sound)) return;
+        // Naam van een macOS-systeemgeluid (Glass, Ping, Hero...) of een volledig pad.
+        var file = config.Sound.Contains('/') ? config.Sound : $"/System/Library/Sounds/{config.Sound}.aiff";
+        try
+        {
+            var info = new ProcessStartInfo("/usr/bin/afplay") { UseShellExecute = false };
+            info.ArgumentList.Add(file);
+            Process.Start(info)?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Info($"Geluid afspelen mislukt ({file}): {ex.Message}");
+        }
+    }
+
+    // mpv-script dat de eerste seconden een knipperende rand over het beeld tekent.
+    private static string WriteFlashScript()
+    {
+        const string lua = """
+            local opts = { seconds = 5, color = "FF0000" }
+            require("mp.options").read_options(opts, "protect-flash")
+            if opts.seconds <= 0 then return end
+
+            local overlay = mp.create_osd_overlay("ass-events")
+            local bgr = opts.color:sub(5, 6) .. opts.color:sub(3, 4) .. opts.color:sub(1, 2)
+            local started = mp.get_time()
+            local visible = false
+            local timer
+
+            local function rect(x1, y1, x2, y2)
+                return string.format("m %d %d l %d %d %d %d %d %d ", x1, y1, x2, y1, x2, y2, x1, y2)
+            end
+
+            timer = mp.add_periodic_timer(0.3, function()
+                if mp.get_time() - started > opts.seconds then
+                    timer:kill()
+                    overlay:remove()
+                    return
+                end
+                local w, h = mp.get_osd_size()
+                if not w or w == 0 then return end
+                visible = not visible
+                if not visible then
+                    overlay:remove()
+                    return
+                end
+                local t = math.max(6, math.floor(math.min(w, h) / 30))
+                overlay.res_x, overlay.res_y = w, h
+                overlay.data = string.format("{\\an7\\pos(0,0)\\bord0\\shad0\\1c&H%s&\\p1}", bgr)
+                    .. rect(0, 0, w, t) .. rect(0, h - t, w, h)
+                    .. rect(0, t, t, h - t) .. rect(w - t, t, w, h - t) .. "{\\p0}"
+                overlay:update()
+            end)
+            """;
+        var path = Path.Combine(Path.GetTempPath(), "protect-popup-flash.lua");
+        File.WriteAllText(path, lua);
+        return path;
     }
 
     private static string FindMpv(string? configured)
